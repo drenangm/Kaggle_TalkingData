@@ -15,9 +15,9 @@ getwd()
 # is_attributed: the target that is to be predicted, indicating the app was downloaded
 
 #--------------------------#
-# necessidades identificadas no dataset de treino:
-# -> divisão do dataset de treino para alocação em memoria
-# -> balanceamento dos dados de treino para a variável target
+# needs identified in the training dataset:
+# -> split the training datset for memory allocation
+# -> training data balancing for the target variable
 #--------------------------#
 
 install.packages('bigreadr')
@@ -41,34 +41,34 @@ library(pROC)
 library(fastAdaboost)
 library(ROCR)
 
-# Os arquivos de treino e teste sao muito grandes para serem carregados de uma so vez em memoria
-# Portanto sera necessario adotar um metodo de divisao destes arquivos
+# Training and test files are too large to be loaded into memory at once
+# Therefore it will be necessary to apply a method of splitting these files
 
-# Variavel de divisao:
+# Splitting variable into chunks
 numChunks <- 5
 
-# vamos desconsiderar o cabecalho:
+# removing the header:
 totalLines <- nlines('train.csv') - 1
 maxLinesChunks <- round(totalLines / numChunks)
 
-# Numero de linhas por arquivo: 36.980.778
+# lines/file: 36.980.778
 
-# apos divisao do dataset em partes (chunks), determinaremos o nome destas partes
+# after dividing the dataset into parts (chunks), we will determine the name of these parts
 chunks <- c('train_part1.csv', 'train_part2.csv', 'train_part3.csv', 'train_part4.csv', 'train_part5.csv')
 
-# carregando o primeira parte do dataset
+# loading first chunk
 chunk <- fread(chunks[1])
 
-# checando as colunas do dataset
+# checking dataset columns
 colNames <- colnames(chunk)
 
-# checando uma amostra do dataset
+# checking a sampling on it:
 head(chunk)
 
-#-----------------Analise Exploratoria--------------#
+#-----------------Exploratory Analysis--------------#
 
-# Verificando o balanceamento dos dados da variavel target
-# Carregaremos os chunks, removeremos valores duplicados, caso existam, e retornaremos a quantidade de cada classe da variavel target
+# Checking the balance of the target variable
+# We will load the chunks, remove duplicate values, if any, and return the amount of each class in the target variable
 
 targetCount <- sapply(chunks, function(x) {
   chunk <- fread(x, col.names = colNames)
@@ -76,14 +76,14 @@ targetCount <- sapply(chunks, function(x) {
   table(chunk$is_attributed)
 })
 
-# sumarizando os resultados obtidos com a transposicao das linhas e colunas
-# para melhor visualizacao da variavel target
+# summarizing the results obtained with the transposition of the rows and columns
+# for better visualization of the target variable
 chunksSummary <- t(targetCount)
 
-# Renomeando o nome das colunas para melhor entendimento
+# Renaming column names for better understanding
 colnames(chunksSummary) <- c('No', 'Yes')
 
-# Apresentando os resultados obtidos 
+# Showing the results
 prop.table(chunksSummary)
 View(chunksSummary)
 
@@ -98,24 +98,23 @@ View(chunksSummary)
 #--------------------------------------------#
 
 
-# O resultado mostrou proporcoes bem parecidas entre cada chunk do dataset
-# Para melhorar a leitura dos resultados vamos agrupar os valores obtidos pasra termos uma analise de todo o dataset
-
-# Somando os resultados de cada coluna do dataset
+# The result presented very similar proportions between each chunk of the dataset
+# To improve the reading of the results, we will group the values obtained to have an analysis of the entire dataset
+# Adding the results of each column of the dataset
 targetTotal <- sapply(as.data.frame(chunksSummary), sum)
 
-# Retornando os resultados obtidos apos a soma de todos os valores
-# valores absolutos
+# Returning the results obtained after the sum of all values
+# absolute values
 print(targetTotal)
-# valores proporcionais
+# Proportional values
 print(prop.table(targetTotal))
 
-# Proporcao final sumarizada: 
+# Summarized final proportion: 
 # No          Yes 
 # 180827810   456845
 # 0.997479958 0.002520042
 
-# Plot dos resultados obtidos na variavel target
+# Plotting the results obtained in the target variable
 
 data.frame(downloadedApp = c('No','Yes'), counts = targetTotal) %>%
   ggplot(aes(x = downloadedApp, y = counts, fill = downloadedApp)) +
@@ -123,15 +122,15 @@ data.frame(downloadedApp = c('No','Yes'), counts = targetTotal) %>%
   labs(title = 'Proportion of downloaded Apps by users') +
   theme_bw()
 
-#-------------Balanceamento dos dados de treino---------------#
+#-------------Balancing Training Dataset---------------#
 
-# Claramente a proporcao dos dados da variavel target e desequilibrada 
-# o que dificultaria o aprendizado do modelo para casos em que usuarios fizeram download
-# Iremos corrigir esta distorcao criando um novo conjunto de dados 
+# Clearly the proportion of the target variable data is unbalanced
+# which would make harder the learning model process for cases where users have downloaded
+# We will correct this distortion by creating a new dataset
 
-# Extraindo de cada parte do dataset todos os registros de download efeutado ('is_attributed == 1')
+# Extracting from each part of the dataset all records downloaded ('is_attributed == 1')
 
-# Funcao para carregar os dados, remocao das linhas duplicadas e capturar usuarios que fizeram download
+# Function to load data, remove duplicate lines and capture users who have downloaded
 sapply(chunks, function(c) {
   chunk <- fread(c, col.names = colNames)
   chunk <- chunk[!duplicated(chunk), ]
@@ -139,18 +138,18 @@ sapply(chunks, function(c) {
   return('Saved file!')
 })
 
-# Sumarizando o numero de linhas em que is_attributed == 1
+# Summarizing the number of lines in which is_attributed == 1
 usersYes <- t(targetTotal)[2]
 
-# Definicao do numeor de linhas que deverao ser amostradas em cada chunk para usuarios que nao fizeram download
+# Definition of the number of lines that should be sampled in each chunk for users who have not downloaded
 usersSampleNo <- round(usersYes / length(chunks))
 
-# Aplicando o seed para reproducao da amostragem
+# Applying the seed for sampling reproduction
 set.seed(42)
 
-# amostrando em cada chunk linhas as quais a classe is_attributed == 0
+# sampling in each chunk lines which the class is_attributed == 0
 
-## Funcao para carregar os dados, remocao das linhas duplicadas e capturar usuarios que nao fizeram download (por amostragem)
+## Function to load the data, remove duplicate lines and capture users who did not download (by sampling)
 sapply(chunks, function(c) {
   chunk <- fread(c, col.names = colNames)
   chunk <- chunk[!duplicated(chunk), ]
@@ -159,10 +158,10 @@ sapply(chunks, function(c) {
   return('Saved file!')
 })
 
-# Carregando o dataset 
+# Loading the dataset
 dataTarget = fread('train_sample.csv')
 
-# Plotando os dados obtidos em um grafico
+# Plotting the obtained data in a graph
 
 dataTarget %>%
   mutate(downloadedApp = factor(is_attributed, labels = c('No', 'Yes'))) %>%
@@ -172,47 +171,47 @@ dataTarget %>%
   ylab('count') +
   theme_bw()
 
-#-----------------Carregando os dados de teste-----------------#
+#-----------------Loading Test Dataset-----------------#
 
-# Utilizaremos a mesma solucao adotada para os dados de treino
-# Faremos isso para termos proporcoes adequadas quando formos aplicar a fase de treino/teste do modelo
+# We will apply the same solution adopted for the training data
+# We will do this to have a better proportion when we apply the training/testing phase of the model
 
-#  definicao da quantidade de chunks de teste
+# defining test chunks
 numTestChunks <- 5
 totalTestLines <- nlines('test.csv') - 1
 maxLinesTestChunks <- round(totalTestLines / numTestChunks)
 
-# Da mesma forma feita com os dados de treino, utilizaremos o comando split (Linux) para fazer a divisao
-# dos dados de teste em 5 chunks -> volume total por chunk de 3.758.094 linhas
+# In the same way with the training data, we will use the split command (Linux) to do the division
+# of test data in 5 chunks -> total volume per chunk of 3,758,094 lines
 # drgm@sandbox:~/Big_Data_Analytics_R/Project_Feedback$ split test.csv -l 3758094
 
-# determinando os nomes dos chunks com o dataset de teste
+# determining chunk names with test dataset
 testChunks <- c('test_part1.csv', 'test_part2.csv', 'test_part3.csv', 'test_part4.csv', 'test_part5.csv')
 
-# fazendo o carregamento do primeiro chunks de dados de teste
+# loading the first test data chunks
 testChunk <- fread(testChunks[1])
 
-# checando as 1as linhas
+# checking firt lines
 head(testChunk)
 
-#-------------------Analise Exploratoria-------------------#
+#-------------------Exploratory Analysis-------------------#
 
-# Verificando a estrutura dos dados no dataset
+# Checking the data structure in the dataset
 str(dataTarget)
 View(dataTarget)
 
-# checando a existencia de valores NA's no dataset
+# checking the existence of missing values in the dataset
 sapply(dataTarget, function(v) {anyNA(v)})
 
-# apenas attributed_time possui valores NA`s
-# vamos contar quantos valores NA's temos na coluna "attributed_time"
+# only attributed_time has NA`s values
+# let's count how many NA's values we have in the "attributed_time" column
 sum(is.na(dataTarget$attributed_time))
 
-# temos 456845 registros de NA's no dataset
-# concluimos que estes registros tem relacao com o fato do usuario nao ter feito download
-# faz todo sentido nao haver registro de uma acao que nao foi praticada pelo usuario
+# we have 456845 "NA" records in the dataset
+# we conclude that these records are related to the fact that the user has not downloaded
+# it makes perfect sense not to have a record of an action that was not performed by the user
 
-# vamos verificar registro unicos das variaveis int (ip, app, device, os, channel)
+# let's check unique records of int variables (ip, app, device, os, channel)
 dataTarget %>%
   select('ip') %>%
   n_distinct()
@@ -235,32 +234,32 @@ dataTarget %>%
 # OS: 190
 # channel: 180
 
-# pela quantidade mapeada de ips e possivel concluir que podem existir multiplos
-# anuncios associados ao registro de um unico usuario
+# by the number of ips mapped, it is possible to conclude that there can be multiples
+# ads associated with the registration of a single user
 
-# Confirmando se a variavel target e representada por apenas duas classes diferentes
+# Confirming that the target variable is represented by only two different classes
 dataTarget %>%
   select('is_attributed') %>% 
   n_distinct()
 
 #----------------Data Munging----------------#
 
-# attributed_time para is_attributed = 0 -> NA
-# estrutra de dados de attributed_time e click_time -> POSIXct
+# attributed_time for is_attributed = 0 -> NA
+# data strucutre of attributed_time e click_time -> POSIXct
 
 
 #--------------------------------------------#
 
-# Avaliando a variavel click_time 
-# Checando a distribuicao de datas em que ocorreram os cliques
+# Evaluating the click time variable
+# Checking the distribution of dates when the clicks occurred
 summary(dataTarget$click_time)
 
-# verificando o periodo de tempo em que ocorreram os cliques
+# checking the time period in which the clicks occurred
 max(dataTarget$click_time) - min(dataTarget$click_time)
-# Periodo de clicks ocorreram em um periodo de aproximadamente 3 dias
+# Period of clicks occurred in a period of approximately 3 days
 
-# Criaremos um grafico com serie temporal para checarmos o numero de cliques em anuncios por hora 
-# e que levaram ao download de apps durante todo o intervalo de tempo
+# We will create a time series graph to check the number of ad clicks per hour
+# and which led to the downloading of apps during the entire time span
 dataTarget %>%
   mutate(datesFix = floor_date(click_time, unit = 'hour')) %>%
   group_by(datesFix) %>%
@@ -274,10 +273,10 @@ dataTarget %>%
   ylab('Downloads') +
   labs(title = 'Downloads done by period of time')
 
-# A serie mostra que existe consistencia de downloads ao longo do dia dentro do periodo de 3 dias
-# o pico de downloads ocorreu das 00:00 as 13:00 hrs
+# The series shows that there is consistency of downloads throughout the day within the 3-day period
+# downloads peak occurred from 00:00 to 13:00 hrs
 
-# Faremos a mesma analise considerando cliques que nao levaram a downloads
+# We will do the same analysis considering clicks that did not lead to downloads
 dataTarget %>%
   mutate(datesFix = floor_date(click_time, unit = 'hour')) %>%
   group_by(datesFix) %>%
@@ -291,10 +290,10 @@ dataTarget %>%
   ylab('Not downloaded') +
   labs(title = 'Downloads not done by period of time')
 
-# Os periodos em que ocorreram cliques e nao foram feitos downloads seguem uma distribuicao
-# parecida em relacao ao grafico anterior
+# The periods in which clicks occurred and no downloads were made follow a distribution
+# similar to the previous plot
 
-# Vamos sobrepor os dois graficos
+# Let's overlap the two plots
 
 dataTarget %>%
   mutate(datesFix = floor_date(click_time, unit = 'hour')) %>%
@@ -313,10 +312,10 @@ dataTarget %>%
 
 #-------------------Feature Engineering---------------#
 
-# Vamos preparar os dados de treino para criacao do modelo preditivo:
-# A variavel attributed_time sera removida pois tem relacao direta com o que desejamos prever na variavel target (is_attributed = 1)
-# Transformaremos a variavel click_time a qual vamos remover a unidade "Mes", pois nao e relevante nesta amostragem
-# Vamos agrupar a variavel ip com as demais variaveis do dataset devido a grande quantidade de valores unicos que ela possui
+# Let's prepare the training data for creating the predictive model:
+# The attributed_time variable will be removed as it has a direct relationship with what we want to predict in the target variable (is_attributed = 1)
+# We will transform the click_time variable to which we will remove the "Month" unit, as it is not relevant in this sample
+# Let's group the ip variable with the other variables of the dataset due to the large amount of unique values it has
 dataTarget <- dataTarget %>%
   select(-c(attributed_time)) %>%
   mutate(day = day(click_time), hour = hour(click_time)) %>%
@@ -328,7 +327,7 @@ dataTarget <- dataTarget %>%
   add_count(ip, hour, channel) %>% rename('ip_hour_CHANNEL' = n) %>%
   select(-c(ip))
 
-# O mesmo processo de feature engineering sera aplicado a cada chunk do dataset de teste
+# The same feature engineering process will be applied to each chunk of the test dataset
 colTestNames <- colnames(testChunk)
 sapply(testChunks, function(x) {
   testChunk <- fread(x, col.names = colTestNames)
@@ -345,38 +344,38 @@ sapply(testChunks, function(x) {
   return('Test chunk saved!')
 })
 
-# Converteremos a variavel target do tipo int para tipo factor pois resolveremos um problema em que nossa variavel target
-# tera como resultado um valor do tipo categorico
+# We will convert the target variable from int type to factor type because we will solve a problem where our target variable
+# will result in a value of type categorical
 dataTarget$is_attributed <- as.factor(dataTarget$is_attributed)
 
-# Salvando o resultado em um arquivo consolidado
+# Saving the result in a consolidated file
 fwrite(dataTarget, 'dataTarget.csv')
 str(dataTarget)
 
 ###########-------------------#############
 
-# para "resgatar" a variavel dataTarget, caso necessario
+# to "push back" the dataTarget dataset, if necessary
 dataTarget <- fread('dataTarget.csv')
 
 ###########-------------------#############
 
-# Avaliacao da importancia de cada variavel
-# Iremos utilizar o algoritmo RandomForest para avaliar peso que cada variavel tem na predicao da variavel target 
-# Sera definido um range de definicao dos valores dos hiperparametros para posterior avaliacao
-# sobre qual configuracao e mais eficiente
+# Assessing the importance of each variable
+# We will use the RandomForest algorithm to evaluate the weight that each variable has in the prediction of the target variable
+# A range for defining the hyperparameter values will be defined for further evaluation
+# about which configuration is most efficient
 
-# definindo um dataframe com os resultados das avaliacoes das configuracoes
+# defining a dataframe with the results of configuration evaluations
 featureEvalRF <- data.frame()
 
-# estabelecendo o range de arvores e nos
+# establishing the range of trees and nodes
 RFTrees <- 1:25
 RFNodes <- 1:10
 
-# quantidade de modelos que serao criados
+# number of models to be created
 modelComb <- length(RFTrees) * length(RFNodes) 
 
-# vamos criar uma variavel para que possamos acompanhar a avaliacao em andamento
-# em seguida sera feita a avaliacao dos atributos de maior importancia e geracao da matriz de confusao
+# let's create a variable so that we can follow the evaluation in progress
+# then the most important attributes will be evaluated and the confusion matrix will be generated
 count <- 0
 for(t in RFTrees) {
   for(n in RFNodes) {
@@ -401,13 +400,13 @@ for(t in RFTrees) {
   }
 }
 
-# Resultados serao salvos em um arquivo .csv
+# The results will be saved in a .csv file
 fwrite(featureEvalRF, 'featureEvalRF.csv')
 
-# carregando o dataframe com os resultados obtidos
+# loading the dataframe with the results obtained
 featureEvalRF <- fread('featureEvalRF.csv')
 
-# Impressao da configuracao que apresentou melhor desempenho
+# Returning the configuration that presented the best performance
 bestFeatureRF <- featureEvalRF[featureEvalRF$accuracy == max(featureEvalRF$accuracy),]
 bestFeatureRF
 
@@ -420,7 +419,7 @@ modelRF <- randomForest(is_attributed ~ .,
                         nodesize = bestFeatureRF$nodes,
                         importance = TRUE)
 
-# Retornando os resultados do modelo
+# Returning the model results
 modelRF
 
 # Type of random forest: classification
@@ -433,10 +432,10 @@ modelRF
 # 0 440114  16729  0.03661871
 # 1  57425 399419  0.12569936
 
-# Criaremos um grafico para visualizar o nivel de importancia de cada variavel na determinacao da variavel target
+# We will create a graph to visualize the importance level of each variable in determining the target variable
 varEval <- as.data.frame(varImpPlot(modelRF))
 
-# retornando uma lista com o nivel de importancia de cada variavel em ordem decrescente
+# returning a list with the importance level of each variable in descending order
 varEval[order(varEval$MeanDecreaseAccuracy, decreasing = TRUE),]
 
 #                 MeanDecreaseAccuracy MeanDecreaseGini
@@ -452,21 +451,21 @@ varEval[order(varEval$MeanDecreaseAccuracy, decreasing = TRUE),]
 # device                      5.617553        22971.100
 # os                          4.337295        18479.965
 
-#------------------Criacao do Modelo Preditivo-----------------#
+#------------------Creating the predictive model-----------------#
 
-# Sera feita a selecao de 3 algoritmos para treinamento do modelo preditivo
-# que melhor se adaptam a conjunto de dados muito grande:
+# We will pick 3 algorithms in order to train the predicitive model
+# which best fit very large datasets:
 
 # Naive-Bayes
 # Random Forest
 # Adaboost
 
-#---------------Algoritmo Naive-Bayes------------#
+#---------------Naive-Bayes Algorithm------------#
 
-# criando o modelo com o Naive-Bayes
+# creating the model with Naive-Bayes
 modelNB <- naiveBayes(is_attributed ~ ., data = dataTarget)
 
-# fazendo previsoes
+# making predictions
 predictionsNB <- predict(modelNB, dataTarget, type = c('class', 'raw'))
 
 # Confusion Matrix
@@ -484,7 +483,7 @@ confusionMatrix(table(pred = predictionsNB, data = dataTarget$is_attributed))
 
 #################################
 
-# Gerando a curva ROC
+# Generating the ROC curve
 rocNB <- prediction(as.numeric(predictionsNB), dataTarget$is_attributed)
 perfNB <- performance(rocNB, 'tpr', 'fpr')
 plot(perfNB, col = 'blue', main = 'Curva ROC - Naive-Bayes')
@@ -495,15 +494,15 @@ prNB <- performance(rocNB, 'prec', 'rec')
 plot(prNB, main = 'Curva Precision/Recall - Naive-Bayes')
 
 
-#---------------Algoritmo Random Forest--------------#
+#---------------Random Forest algorithm--------------#
 
-# Criando o modelo com o Random Forest
+# Creating the model with Random Forest
 modelAppRF <- randomForest(is_attributed ~ .,
                            ntree = 25,
                            nodesize = 10,
                            data = dataTarget)
 
-# Fazendo previsoes
+# Making Predictions
 predictionsAppRF <- predict(modelAppRF, dataTarget, type = 'response')
 
 # Confusion Matrix
@@ -522,7 +521,7 @@ confusionMatrix(table(pred = predictionsAppRF, data = dataTarget$is_attributed))
 
 ###################################
 
-# Gerando a curva ROC
+# Generating ROC Curve
 rocRF <- prediction(as.numeric(predictionsAppRF), dataTarget$is_attributed)
 perfRF <- performance(rocRF, 'tpr', 'fpr')
 plot(perfRF, col = 'green', main = 'Curva ROC - Random Forest')
@@ -534,12 +533,12 @@ plot(prRF, main = 'Curva Precision/Recall - Random Forest')
 
 str(predictionsAppRF)
 
-#---------------Algoritmo AdaBoost------------#
+#---------------AdaBoost Algorithm------------#
 
-# Criando o modelo com o AdaBoost
+# Creating the model with AdaBoost
 modelAdaB <- adaboost(is_attributed ~ ., data = as.data.frame(dataTarget), nIter = 10, method = 'adaboost')
 
-# Fazendo previsoes
+# Making predictions
 predictionsAdaB <- predict(modelAdaB, dataTarget, type = 'class')
 
 # Confusion Matrix
@@ -557,7 +556,7 @@ confusionMatrix(table(pred = predictionsAdaB$class, data = dataTarget$is_attribu
 
 ######################
 
-# Gerando a curva ROC
+# Generating ROC Curve
 rocAdaB <- prediction(as.numeric(predictionsAdaB$class), dataTarget$is_attributed)
 perfAdaB <- performance(rocAdaB, 'tpr', 'fpr')
 plot(perfAdaB, main = 'Curva ROC - AdaBoost')
@@ -567,15 +566,15 @@ abline(a = 0, b = 1)
 prAdaB <- performance(rocAdaB, 'prec', 'rec')
 plot(prAdaB, main = 'Curva Precision/Recall - AdaBoost')
 
-#-----------------Otimizacao do modelo com melhor desempenho--------------#
+#-----------------Optimization of the best performing model--------------#
 
-# Buscaremos otimizar o desempenho de modelo desenvolvido com o AdaBoost alterando alguns parametros
+# We will seek to optimize the performance of the model developed with AdaBoost by changing some parameters
 modelOptAda <- adaboost(is_attributed ~ .,
                          data = as.data.frame(dataTarget),
                          nIter = 50,
                          method = 'adaboost')
 
-# Fazendo previsoes com o modelo otimizado
+# Making predictions with the optimized model
 predictionsOptAda <- predict(modelOptAda, dataTarget, type = 'class')
 
 confusionMatrix(table(pred = predictionsOptAda$class, data = dataTarget$is_attributed))
@@ -590,7 +589,7 @@ confusionMatrix(table(pred = predictionsOptAda$class, data = dataTarget$is_attri
 
 ######################
 
-# Gerando a curva ROC
+# Generating ROC Curve
 rocOptAdaB <- prediction(as.numeric(predictionsOptAda$class), dataTarget$is_attributed)
 perfOptAdaB <- performance(rocOptAdaB, 'tpr', 'fpr')
 plot(perfOptAdaB, main = 'Curva ROC - AdaBoost Optimized')
@@ -601,12 +600,12 @@ prOptAdaB <- performance(rocOptAdaB, 'prec', 'rec')
 plot(prOptAdaB, main = 'Curva Precision/Recall - AdaBoost Optimized')
 
 
-#-------------------Previsoes com os dados de teste--------------------#
+#-------------------Predictions with test dataset--------------------#
 
-# Realizaremos as previsoes utilizando o modelo com Adaboost Otimizado
-# Os resultados obtidos serao salvos em um arquivo .csv
+# We will make the predictions using the model with Optimized Adaboost
+# The results obtained will be saved in a .csv file
 
-# Chamando algumas variaveis ja utilizadas e que foram modificadas devido a transformacoes no dataset de teste
+# Calling some variables already used and that were modified due to transformations in the test dataset
 testModifChunks <- c('modif_test_part1.csv', 'modif_test_part2.csv', 'modif_test_part3.csv', 
                      'modif_test_part4.csv', 'modif_test_part5.csv')
 testModifChunk <- fread(testModifChunks[1])
