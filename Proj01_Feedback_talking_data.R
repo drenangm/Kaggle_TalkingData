@@ -1,4 +1,4 @@
-setwd("C:/MyBkp/Cursos/DSA/DSA_Formacao_Cientista_Dados/Curso01_Big-Data-Analytics-com-R-e-Microsoft-Azure-Machine-Learning/Projeto_Feedback/Projetos-1-2/Proj01")
+setwd("C:/.../Proj01")
 getwd()
 
 # -------------------------#
