@@ -20,10 +20,6 @@ getwd()
 # -> training data balancing for the target variable
 #--------------------------#
 
-install.packages('bigreadr')
-install.packages('fasttime')
-install.packages('tidyverse')
-install.packages('fastAdaboost')
 library(bigreadr)
 library(utils)
 library(dplyr)
